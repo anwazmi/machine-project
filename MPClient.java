@@ -1,5 +1,3 @@
-package mp;
-
 import java.io.*;
 import java.net.*;
 import java.util.*;
@@ -12,9 +10,7 @@ public class MPClient {
         try {
 
             clientEndpoint = new Socket(serverAddress, port);
-            System.out.println("Client: Connected to server at" + clientEndpoint.getRemoteSocketAddress());
-
-            // TODO: Detect & error message for unsuccessful connection
+            System.out.println("Successfully connected to Fie Server at" + clientEndpoint.getRemoteSocketAddress());
         
         } catch (UnknownHostException | ConnectException e) {
 			System.out.println("Error: Connection failed.");
@@ -23,11 +19,15 @@ public class MPClient {
         }
     }
 
+    public static void registerAlias(String alias) {
+
+        // TODO: implement
+
+    }
+
     public static void storeFile(String filename) {
 
         File file = new File(filename);
-
-        System.out.println("Storing file \"" + file.getName() + "\" (" + file.length() + " bytes)");
 
         try {
 
@@ -42,6 +42,10 @@ public class MPClient {
             System.out.println(file.getName() + " stored successfully.");
             disReader.close();
 
+        } catch (SocketException e) {
+            System.out.println("Error: Cannot store file, not connected to a server.");
+        } catch (FileNotFoundException e) {
+            System.out.println("Error: File \"" + file.getName() + "\" not found.");
         } catch (Exception e) {
             e.printStackTrace();
             System.out.println("Error: Failed to store file " + file.getName() + ".");
@@ -51,9 +55,16 @@ public class MPClient {
 
     }
 
+    public static void requestDirectory() {
+
+        System.out.println("Directory file list:");
+        // TODO: implement
+
+    }
+
     public static void getFile(String filename) {
 
-        // TODO: send name of file requested to server
+        // TODO: implement sending proper request to server w/ filename
 
         try {
 
@@ -68,11 +79,24 @@ public class MPClient {
             System.out.println("Downloaded file \"" + filename + "_received.txt\"");
             dosWriter.close();
 
+        } catch (SocketException e) {
+            System.out.println("Error: Not connected to a server.");
         } catch (Exception e) {
             e.printStackTrace();
             System.out.println("Error: File not found.");
         }
 
+    }
+
+    public static void printCommands() {
+        System.out.println("Application commands: \n" +
+                           "  /join <server_ip_add> <port> \t Connect to the server application \n" +
+                           "  /leave \t\t\t Disconnect from the server application \n" +
+                           "  /register <handle> \t\t Register a unique handle or alias \n" +
+                           "  /store <filename> \t\t Send file to server \n" +
+                           "  /dir \t\t\t\t Request directory file list from a server \n" +
+                           "  /get <filename> \t\t Fetch a file from a server \n" +
+                           "  /? \t\t\t\t Request command help");
     }
 
   
@@ -86,7 +110,7 @@ public class MPClient {
         do {
             // get user input
             input.clear();
-            System.out.print("\nCommand > ");
+            System.out.print("\n> ");
             command = scn.nextLine();
             st = new StringTokenizer(command);
 
@@ -94,9 +118,6 @@ public class MPClient {
             while(st.hasMoreTokens())
                 input.add(st.nextToken());
 
-            /*input validation
-            if(inputValidation(input)) break;
-            else */
             // find user command to execute
             try {
                 switch(input.get(0)) {
@@ -105,14 +126,20 @@ public class MPClient {
                         joinServer(input.get(1), Integer.parseInt(input.get(2)));
                         break;
                     case "/register":
+                        registerAlias(input.get(1));
+                        break;
                     case "/store":
                         storeFile(input.get(1));
                         break;
                     case "/dir":
+                        requestDirectory();
+                        break;
                     case "/get":
                         getFile(input.get(1));
                         break;
                     case "/?":
+                        printCommands();
+                        break;
                     case "/leave": break;
                     default:
                         System.out.println("Error: Unknown command. Type /? for help.");
