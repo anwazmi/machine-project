@@ -2,7 +2,7 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
-public class MPClient {
+public class Client {
 
     static Socket clientEndpoint = new Socket();
     
