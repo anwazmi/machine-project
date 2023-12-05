@@ -2,7 +2,7 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
-public class Client {
+public class MPClient {
 
     static Socket clientEndpoint = new Socket();
     
@@ -10,7 +10,7 @@ public class Client {
         try {
 
             clientEndpoint = new Socket(serverAddress, port);
-            System.out.println("Successfully connected to Fie Server at" + clientEndpoint.getRemoteSocketAddress());
+            System.out.println("Successfully connected to File Server at " + clientEndpoint.getRemoteSocketAddress());
         
         } catch (UnknownHostException | ConnectException e) {
 			System.out.println("Error: Connection failed.");
@@ -41,6 +41,7 @@ public class Client {
 
             System.out.println(file.getName() + " stored successfully.");
             disReader.close();
+            dosWriter.close();
 
         } catch (SocketException e) {
             System.out.println("Error: Cannot store file, not connected to a server.");
@@ -101,14 +102,16 @@ public class Client {
   
     public static void main(String[] args)
 	{
-        try {
-            DataOutputStream dosWriter = null;
-            Scanner scn = new Scanner(System.in);
-            StringTokenizer st;
-            ArrayList<String> input = new ArrayList<String>();
-            String command = "default";
+        ArrayList<String> input = new ArrayList<String>();
+        try { DataOutputStream dosWriter = null;
+        
+        do {
+            try {
+                //DataInputStream disReader = new DataInputStream(clientEndpoint.getInputStream());
+                Scanner scn = new Scanner(System.in);
+                StringTokenizer st;
+                String command = "default";
 
-            do {
                 // get user input
                 input.clear();
                 System.out.print("\n> ");
@@ -120,7 +123,7 @@ public class Client {
                     input.add(st.nextToken());
 
                 if(dosWriter != null)
-                    try { dosWriter.writeUTF(command);  } catch (Exception e) { e.printStackTrace(); }
+                    try { dosWriter.writeUTF(command); } catch (Exception e) { int x=1; e.printStackTrace(); }
 
                 // find user command to execute
                 try {
@@ -130,6 +133,10 @@ public class Client {
                             joinServer(input.get(1), Integer.parseInt(input.get(2)));
                             dosWriter = new DataOutputStream(clientEndpoint.getOutputStream());
                             break;
+                        case "/leave": 
+                            clientEndpoint.close();
+                            System.out.println("Disconnected from server.");
+                            break;
                         case "/register":
                             registerAlias(input.get(1));
                             break;
@@ -137,7 +144,9 @@ public class Client {
                             storeFile(input.get(1));
                             break;
                         case "/dir":
-                            requestDirectory();
+                            //requestDirectory();
+                            //System.out.println(disReader.readUTF());
+                            //disReader.close();
                             break;
                         case "/get":
                             getFile(input.get(1));
@@ -145,7 +154,7 @@ public class Client {
                         case "/?":
                             printCommands();
                             break;
-                        case "/leave": break;
+                        case "/stop": break;
                         default:
                             System.out.println("Error: Unknown command. Type /? for help.");
 
@@ -154,15 +163,17 @@ public class Client {
                     System.out.println("Error: Invalid command syntax. Type /? for help.");
                 }
 
-            } while(!input.get(0).equals("/leave"));
-                
+            } catch (Exception e) { int x=1; }
+
+        } while(!input.get(0).equals("/stop"));
+
+        } catch (Exception e) { int x=1; }
+
+        try {
             // terminate connection
-            try {
-                clientEndpoint.close();
-                System.out.println("Connection is terminated.");
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        } catch (Exception e) { return; }
+            clientEndpoint.close();
+            System.out.println("Connection is terminated.");
+        } catch (Exception e) { int x=1; }
+
 	}
 }
