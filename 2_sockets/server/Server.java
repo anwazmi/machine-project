@@ -1,7 +1,7 @@
 import java.io.*;
 import java.net.*;
 import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.*;
 
 public class Server {
     public static void main(String[] args) {
@@ -32,13 +32,13 @@ public class Server {
         @Override
         public void run() {
             try {
-                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+                DataInputStream disReader = new DataInputStream(clientSocket.getInputStream());
+                DataOutputStream dosWriter = new DataOutputStream(clientSocket.getOutputStream());
 
-                String inputLine;
-                while ((inputLine = in.readLine()) != null) {
-                    String[] commType = inputLine.split(" ");
-                    String command = commType[0].toLowerCase();
+                String inputLine = disReader.readUTF();                    
+                String[] commType = inputLine.split(" ");
+                String command = commType[0].toLowerCase();
 
                     switch (command) {
                         case "/join":
@@ -85,8 +85,8 @@ public class Server {
                         case "/store":
                             if (commType.length >= 2) {
                                 String filename = commType[1];
-                                storeFile(filename, in);
-                                out.println(cName + ": File stored on the server: " + filename);
+                                storeFile(filename, disReader);
+                                //out.println(cName + ": File stored on the server: " + filename);
                             } else {
                                 out.println("Error: /store command requires a filename.");
                             }
@@ -99,7 +99,7 @@ public class Server {
                         case "/get":
                             if (commType.length >= 2) {
                                 String reqFileName = commType[1];
-                                sendFile(reqFileName, out);
+                                sendFile(reqFileName, dosWriter);
                             } else {
                                 out.println("Error: /get command requires a filename.");
                             }
@@ -118,10 +118,10 @@ public class Server {
                             out.println("Error: Command not found.");
                             break;
                     }
-                }
+                
 
                 // Close all
-                in.close();
+                disReader.close();
                 out.close();
                 clientSocket.close();
             } catch (IOException e) {
@@ -151,48 +151,42 @@ public class Server {
         }
 
         // Store a file
-        private void storeFile(String filename, BufferedReader in) {
+        private void storeFile(String filename, DataInputStream in) {
             try {
                 // Assuming files will be stored in the same directory
-                String filePath = "C:\\Users\\anwar\\OneDrive\\Desktop\\DLSU\\CSNETWRK\\Machine Project\\" + filename;
+                String filePath = /* "C:\\Users\\anwar\\OneDrive\\Desktop\\DLSU\\CSNETWRK\\Machine Project\\" + */ filename;
                 PrintWriter fileWriter = new PrintWriter(new FileWriter(filePath), true);
 
                 String line;
-                while ((line = in.readLine()) != null && !line.equals("/endstore")) {
-                    fileWriter.println(line);
-                }
+                //while ((line = in.readLine()) != null && !line.equals("/endstore")) {
+                //    fileWriter.println(line);
+                //}
 
                 fileWriter.close();
+				System.out.print(filename + " stored successfully.");
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
 
         // Send a file to the client
-        private void sendFile(String filename, PrintWriter out) {
+        private void sendFile(String filename, DataOutputStream dosWriter) {
             try {
-                // Assuming files are stored in the same directory
-                String filePath = "C:\\Users\\anwar\\OneDrive\\Desktop\\DLSU\\CSNETWRK\\Machine Project\\" + filename;
-                File file = new File(filePath);
+                    File file = new File(filename);
+                    InputStream disReader = new FileInputStream(file);
 
-                if (file.exists() && file.isFile()) {
-                    out.println("Sending file: " + filename);
+                    System.out.println("Server: Sending file \"" + file.getName() + "\" (" + file.length() + " bytes)");
 
-                    FileInputStream fileInputStream = new FileInputStream(file);
-                    byte[] buffer = new byte[1024];
-                    int bytesRead;
+                    byte[] bytes = new byte[1024];
+                    int count;
+                    while ((count = disReader.read(bytes)) > 0) 
+                        dosWriter.write(bytes, 0, count);
 
-                    while ((bytesRead = fileInputStream.read(buffer)) != -1) {
-                        out.println(new String(buffer, 0, bytesRead));
-                    }
-
-                    out.println("/endget"); // Signal end of the file
-                    fileInputStream.close();
-                } else {
-                    out.println("Error: File not found on the server.");
-                }
+                    clientSocket.close();
+                System.out.print(filename + " received successfully.");
             } catch (IOException e) {
-                e.printStackTrace();
+                System.out.println("Error: File not found on the server.");
+                //e.printStackTrace();
             }
         }
     }
