@@ -5,7 +5,7 @@ import java.util.*;
 public class MPClient {
 
     static Socket clientEndpoint = new Socket();
-
+    
     public static void joinServer(String serverAddress, int port) {
         try {
 
@@ -64,20 +64,19 @@ public class MPClient {
 
     public static void getFile(String filename) {
 
-        // TODO: implement sending proper request to server w/ filename
-
         try {
 
             InputStream disReader = new DataInputStream(clientEndpoint.getInputStream());
-            OutputStream dosWriter = new FileOutputStream(filename + "_received.txt");
-            
+            OutputStream dosWriter = new FileOutputStream(filename); 
+
             byte[] bytes = new byte[4096];
             int count;
             while ((count = disReader.read(bytes)) > 0)
-                dosWriter.write(bytes, 0, count);
+                dosWriter.write(bytes, 0, count); 
             
-            System.out.println("Downloaded file \"" + filename + "_received.txt\"");
             dosWriter.close();
+
+            System.out.println("Downloaded file \"" + filename + "\" successfully.");
 
         } catch (SocketException e) {
             System.out.println("Error: Not connected to a server.");
@@ -102,62 +101,68 @@ public class MPClient {
   
     public static void main(String[] args)
 	{
-        Scanner scn = new Scanner(System.in);
-        StringTokenizer st;
-        ArrayList<String> input = new ArrayList<String>();
-        String command = "default";
-        
-        do {
-            // get user input
-            input.clear();
-            System.out.print("\n> ");
-            command = scn.nextLine();
-            st = new StringTokenizer(command);
-
-            //tokenize
-            while(st.hasMoreTokens())
-                input.add(st.nextToken());
-
-            // find user command to execute
-            try {
-                switch(input.get(0)) {
-                    
-                    case "/join":
-                        joinServer(input.get(1), Integer.parseInt(input.get(2)));
-                        break;
-                    case "/register":
-                        registerAlias(input.get(1));
-                        break;
-                    case "/store":
-                        storeFile(input.get(1));
-                        break;
-                    case "/dir":
-                        requestDirectory();
-                        break;
-                    case "/get":
-                        getFile(input.get(1));
-                        break;
-                    case "/?":
-                        printCommands();
-                        break;
-                    case "/leave": break;
-                    default:
-                        System.out.println("Error: Unknown command. Type /? for help.");
-
-                }
-            } catch (IndexOutOfBoundsException | NumberFormatException e) {
-                System.out.println("Error: Invalid command syntax. Type /? for help.");
-            }
-
-        } while(!input.get(0).equals("/leave"));
-			
-        // terminate connection
         try {
-            clientEndpoint.close();
-            System.out.println("Connection is terminated.");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+            DataOutputStream dosWriter = null;
+            Scanner scn = new Scanner(System.in);
+            StringTokenizer st;
+            ArrayList<String> input = new ArrayList<String>();
+            String command = "default";
 
+            do {
+                // get user input
+                input.clear();
+                System.out.print("\n> ");
+                command = scn.nextLine();
+                st = new StringTokenizer(command);
+
+                //tokenize
+                while(st.hasMoreTokens())
+                    input.add(st.nextToken());
+
+                if(dosWriter != null)
+                    try { dosWriter.writeUTF(command);  } catch (Exception e) { e.printStackTrace(); }
+
+                // find user command to execute
+                try {
+                    switch(input.get(0)) {
+                        
+                        case "/join":
+                            joinServer(input.get(1), Integer.parseInt(input.get(2)));
+                            dosWriter = new DataOutputStream(clientEndpoint.getOutputStream());
+                            break;
+                        case "/register":
+                            registerAlias(input.get(1));
+                            break;
+                        case "/store":
+                            storeFile(input.get(1));
+                            break;
+                        case "/dir":
+                            requestDirectory();
+                            break;
+                        case "/get":
+                            getFile(input.get(1));
+                            break;
+                        case "/?":
+                            printCommands();
+                            break;
+                        case "/leave": break;
+                        default:
+                            System.out.println("Error: Unknown command. Type /? for help.");
+
+                    }
+                } catch (IndexOutOfBoundsException | NumberFormatException e) {
+                    System.out.println("Error: Invalid command syntax. Type /? for help.");
+                }
+
+            } while(!input.get(0).equals("/leave"));
+                
+            // terminate connection
+            try {
+                clientEndpoint.close();
+                System.out.println("Connection is terminated.");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } catch (Exception e) { return; }
 	}
 }
