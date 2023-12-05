@@ -36,11 +36,9 @@ public class Server {
                 DataInputStream disReader = new DataInputStream(clientSocket.getInputStream());
                 DataOutputStream dosWriter = new DataOutputStream(clientSocket.getOutputStream());
 
-                String inputLine;
-
-                while ((inputLine = disReader.readUTF()) != null) {
-                    String[] commType = inputLine.split(" ");
-                    String command = commType[0].toLowerCase();
+                String inputLine = disReader.readUTF();                    
+                String[] commType = inputLine.split(" ");
+                String command = commType[0].toLowerCase();
 
                     switch (command) {
                         case "/join":
@@ -64,16 +62,16 @@ public class Server {
                             break;
                         case "/leave":
                             try {
-                                // Close the input and output streams, but keep the client socket open
-                                disReader.close();
-                                dosWriter.close();
-                                out.close();
-                                System.out.println("Server: Client disconnected: " + clientSocket.getRemoteSocketAddress());
-                                return; // exit the run method
+                                // Close the connection to the server
+                                if (serverConnectionSocket != null && !serverConnectionSocket.isClosed()) {
+                                    serverConnectionSocket.close();
+                                    System.out.println("Server: Disconnected from the connected server.");
+                                }
                             } catch (IOException e) {
                                 // Disconnection failure
                                 System.out.println("Error: Unable to disconnect from the server.");
                             }
+                            out.println("Connection closed. Thank you!");
                             break;
                         case "/register":
                             if (commType.length >= 2) {
@@ -94,21 +92,24 @@ public class Server {
                             }
                             break;
                         case "/dir":
-                            String directoryPath = "C:\\Users\\anwar\\OneDrive\\Desktop\\DLSU\\CSNETWRK\\Machine Project";
+                            /* String directoryPath = "C:\\Users\\anwar\\OneDrive\\Desktop\\DLSU\\CSNETWRK\\Machine Project";
+                            String directoryInfo = listFilesInDirectory(directoryPath);
+                            out.println(directoryInfo);
+                            break;
+                            String directoryPath = "C:\\Users\\anwar\\OneDrive\\Desktop\\DLSU\\CSNETWRK\\Machine Project"; */
+                            
+                            String directoryPath = "C:\\Users\\user\\Downloads\\school\\CSNETWK\\mp\\Server";
                             File directory = new File(directoryPath);
                             File[] contentsOfDirectory = directory.listFiles();
 
                             if (contentsOfDirectory != null) {
-                                for (File object : contentsOfDirectory) {
-                                    if (object.isFile()) {
-                                        out.format("File fName: %s%n", object.getName());
-                                    } else if (object.isDirectory()) {
-                                        out.format("Directory dName: %s%n", object.getName());
-                                    }
-                                }
+                                for (File object : contentsOfDirectory) 
+                                    if (object.isFile()) 
+                                        dosWriter.writeUTF("File fName: %s%n" + object.getName());
                             } else {
                                 out.println("Error: Directory not found or is not a directory.");
                             }
+                            dosWriter.close();
                             break;
                         case "/get":
                             if (commType.length >= 2) {
@@ -132,7 +133,12 @@ public class Server {
                             out.println("Error: Command not found.");
                             break;
                     }
-                }
+                
+
+                /* Close all
+                disReader.close();
+                out.close();
+                clientSocket.close(); */
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -160,42 +166,47 @@ public class Server {
         }
 
         // Store a file
-        private void storeFile(String filename, DataInputStream in) {
+        private void storeFile(String filename, DataInputStream disReader) {
+
+            File file = new File(filename);
+            
             try {
-                // Assuming files will be stored in the same directory
-                String filePath = /* "C:\\Users\\anwar\\OneDrive\\Desktop\\DLSU\\CSNETWRK\\Machine Project\\" + */ filename;
-                PrintWriter fileWriter = new PrintWriter(new FileWriter(filePath), true);
+                file.createNewFile();
+                OutputStream dosWriter = new FileOutputStream(filename); 
 
-                String line;
-                //while ((line = in.readLine()) != null && !line.equals("/endstore")) {
-                //    fileWriter.println(line);
-                //}
+                byte[] bytes = new byte[4096];
+                int count;
+                while ((count = disReader.read(bytes)) > 0)
+                    dosWriter.write(bytes, 0, count); 
+                
+                System.out.println("Stored file \"" + filename + "\" successfully.");
+                dosWriter.close();
 
-                fileWriter.close();
-                System.out.print(filename + " stored successfully.");
-            } catch (IOException e) {
+            } catch (SocketException e) {
+                System.out.println("Error: Not connected to a server.");
+            } catch (Exception e) {
                 e.printStackTrace();
+                System.out.println("Error: File not found.");
             }
         }
 
         // Send a file to the client
         private void sendFile(String filename, DataOutputStream dosWriter) {
             try {
-                File file = new File(filename);
-                InputStream disReader = new FileInputStream(file);
+                    File file = new File(filename);
+                    InputStream disReader = new FileInputStream(file);
 
-                System.out.println("Server: Sending file \"" + file.getName() + "\" (" + file.length() + " bytes)");
+                    System.out.println("Server: Sending file \"" + file.getName() + "\" (" + file.length() + " bytes)");
 
-                byte[] bytes = new byte[1024];
-                int count;
-                while ((count = disReader.read(bytes)) > 0)
-                    dosWriter.write(bytes, 0, count);
+                    byte[] bytes = new byte[1024];
+                    int count;
+                    while ((count = disReader.read(bytes)) > 0) 
+                        dosWriter.write(bytes, 0, count);
 
-                clientSocket.close();
+                    clientSocket.close();
                 System.out.print(filename + " received successfully.");
             } catch (IOException e) {
                 System.out.println("Error: File not found on the server.");
-                //e.printStackTrace();
             }
         }
     }
