@@ -124,7 +124,11 @@ public class MPClient {
     public static void main(String[] args)
 	{
         ArrayList<String> input = new ArrayList<String>();
-        try { DataOutputStream dosWriter = null;
+        try { 
+            
+        DataOutputStream dosWriter = null;
+        boolean joined = false;
+        boolean registered = false;
         
         do {
             try {
@@ -144,24 +148,37 @@ public class MPClient {
                     input.add(st.nextToken());
 
                 if(dosWriter != null)
-                    try { dosWriter.writeUTF(command); } catch (Exception e) { int x=1; System.out.println("doswriter catch"); }
+                    try {
+                        dosWriter.writeUTF(command);
+                    } catch (Exception e) {
+                        if (!input.get(0).equals("/join") && !input.get(0).equals("/leave"))
+                            System.out.println("Error: Not connected to a server.  (1)");
+                    }
 
                 // find user command to execute
                 try {
+                    if(!joined && !input.get(0).equals("/join") && !input.get(0).equals("/?"))
+                        System.out.println("Error: Not connected to a server.");
+                    else if(!registered && input.get(0).equals("/store") && input.get(0).equals("/dir") && input.get(0).equals("/get"))
+                        System.out.println("Error: Not registered.");
+                    else
                     switch(input.get(0)) {
                         
                         case "/join":
                             joinServer(input.get(1), Integer.parseInt(input.get(2)));
                             dosWriter = new DataOutputStream(clientEndpoint.getOutputStream());
+                            joined = true;
                             break;
                         case "/leave": 
                             clientEndpoint.close();
                             System.out.println("Disconnected from server.");
+                            joined = false;
                             break;
                         case "/register":
                             DataInputStream disReader = new DataInputStream(clientEndpoint.getInputStream());
                             String messageServer = disReader.readUTF();
                             System.out.println("Server: " + messageServer);
+                            registered = true;
                             break;
                         case "/store":
                             storeFile(input.get(1));
@@ -189,6 +206,9 @@ public class MPClient {
             } catch (Exception e) { int x=1; }
 
         } while(!input.get(0).equals("/stop"));
+
+        joined = false;
+        registered = false;
 
         } catch (Exception e) { int x=1; }
 
