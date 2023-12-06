@@ -1,8 +1,9 @@
 import java.io.*;
 import java.net.*;
+import java.nio.file.*;
 import java.util.*;
 
-public class Client {
+public class MPClient {
 
     static Socket clientEndpoint = new Socket();
     
@@ -15,28 +16,14 @@ public class Client {
         } catch (UnknownHostException | ConnectException e) {
 			System.out.println("Error: Connection failed.");
 		} catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static void registerAlias(String handle) {
-        try {
-            DataInputStream disInput = new DataInputStream(clientEndpoint.getInputStream());
-            DataOutputStream dosWriter = new DataOutputStream(clientEndpoint.getOutputStream());
-
-            dosWriter.writeUTF("/register " + handle);
-
-            String messageServer = disInput.readUTF();
-            
-            System.out.println("Server: " + messageServer);
-        } catch (IOException e) {
+            System.out.println("joinServer catch");
             e.printStackTrace();
         }
     }
 
     public static void storeFile(String filename) {
 
-        File file = new File(filename);
+        /* File file = new File(filename);
 
         try {
 
@@ -58,10 +45,32 @@ public class Client {
             System.out.println("Error: File \"" + file.getName() + "\" not found.");
         } catch (Exception e) {
             e.printStackTrace();
+            System.out.println("storefile catch");
             System.out.println("Error: Failed to store file " + file.getName() + ".");
-        }
+        } */
 
         // TODO: Test
+        DataOutputStream dosWriter = null;
+        InputStream disReader = null;
+            try {
+                    dosWriter = new DataOutputStream(clientEndpoint.getOutputStream());
+                    File file = new File(filename);
+                    disReader = new FileInputStream(file);
+
+                    dosWriter.writeByte(1);
+                    byte[] fileData = Files.readAllBytes(file.toPath());
+                    dosWriter.writeInt(fileData.length);
+                    System.out.println("Storing file \"" + file.getName() + "\" (" + file.length() + " bytes)");
+
+                    byte[] bytes = new byte[1024];
+                    int count;
+                    while ((count = disReader.read(bytes)) > 0) 
+                        dosWriter.write(bytes, 0, count);
+                System.out.print(filename + " stored successfully.");
+            } catch (IOException e) {
+                System.out.println("Error: File not found on the server.");
+                try { dosWriter.writeByte(0); } catch (Exception ex) { int x=1; }
+            }
 
     }
 
@@ -73,21 +82,24 @@ public class Client {
     }
 
     public static void getFile(String filename) {
-
         try {
+            DataInputStream disReader = new DataInputStream(clientEndpoint.getInputStream());
+            OutputStream dosWriter = null;
 
-            InputStream disReader = new DataInputStream(clientEndpoint.getInputStream());
-            OutputStream dosWriter = new FileOutputStream(filename); 
+            if(disReader.readByte() != 0) {
 
-            byte[] bytes = new byte[4096];
-            int count;
-            while ((count = disReader.read(bytes)) > 0)
-                dosWriter.write(bytes, 0, count); 
-            
-            dosWriter.close();
+                dosWriter = new FileOutputStream(filename); 
 
-            System.out.println("Downloaded file \"" + filename + "\" successfully.");
+                byte[] bytes = new byte[disReader.readInt()];
+                disReader.readFully(bytes);
+                dosWriter.write(bytes);
 
+                System.out.println("Downloaded file \"" + filename + "\" successfully.");
+            } else 
+                System.out.println("\"" + filename + "\" does not exist.");
+
+            if(dosWriter != null)
+                dosWriter.close();
         } catch (SocketException e) {
             System.out.println("Error: Not connected to a server.");
         } catch (Exception e) {
@@ -132,7 +144,7 @@ public class Client {
                     input.add(st.nextToken());
 
                 if(dosWriter != null)
-                    try { dosWriter.writeUTF(command); } catch (Exception e) { int x=1; e.printStackTrace(); }
+                    try { dosWriter.writeUTF(command); } catch (Exception e) { int x=1; System.out.println("doswriter catch"); }
 
                 // find user command to execute
                 try {
@@ -147,7 +159,9 @@ public class Client {
                             System.out.println("Disconnected from server.");
                             break;
                         case "/register":
-                            registerAlias(input.get(1));
+                            DataInputStream disReader = new DataInputStream(clientEndpoint.getInputStream());
+                            String messageServer = disReader.readUTF();
+                            System.out.println("Server: " + messageServer);
                             break;
                         case "/store":
                             storeFile(input.get(1));
