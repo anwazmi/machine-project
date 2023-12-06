@@ -2,7 +2,7 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
-public class MPClient {
+public class Client {
 
     static Socket clientEndpoint = new Socket();
     
@@ -19,10 +19,19 @@ public class MPClient {
         }
     }
 
-    public static void registerAlias(String alias) {
+    public static void registerAlias(String handle) {
+        try {
+            DataInputStream disInput = new DataInputStream(clientEndpoint.getInputStream());
+            DataOutputStream dosWriter = new DataOutputStream(clientEndpoint.getOutputStream());
 
-        // TODO: implement
+            dosWriter.writeUTF("/register " + handle);
 
+            String messageServer = disInput.readUTF();
+            
+            System.out.println("Server: " + messageServer);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public static void storeFile(String filename) {

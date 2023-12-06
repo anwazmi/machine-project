@@ -4,6 +4,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class Server {
+    private static Map<String, DataOutputStream> clientOutputStreams = new HashMap<>();
+
     public static void main(String[] args) {
         try {
             ServerSocket serverSocket = new ServerSocket(12345);
@@ -12,7 +14,12 @@ public class Server {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Server: Client connected: " + clientSocket.getRemoteSocketAddress());
 
-                Thread clientHandler = new Thread(new ClientHandler(clientSocket));
+                String clientKey = generateUniqueKeyForClient();
+
+                DataOutputStream clientDos = new DataOutputStream(clientSocket.getOutputStream());
+                clientOutputStreams.put(clientKey, clientDos);
+
+                Thread clientHandler = new Thread(new ClientHandler(clientSocket, clientKey));
                 clientHandler.start();
             }
         } catch (Exception e) {
@@ -24,9 +31,20 @@ public class Server {
         private Socket clientSocket;
         private Socket serverConnectionSocket;
         private String cName;
+        private DataInputStream disReader;
+        private DataOutputStream dosWriter;
+        private String clientKey;
 
-        public ClientHandler(Socket clientSocket) {
+        public ClientHandler(Socket clientSocket, String clientKey) {
             this.clientSocket = clientSocket;
+            this.clientKey = clientKey;
+            try {
+                this.disReader = new DataInputStream(clientSocket.getInputStream());
+                this.dosWriter = new DataOutputStream(clientSocket.getOutputStream());
+                clientOutputStreams.put(clientKey, dosWriter);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         @Override
@@ -76,10 +94,14 @@ public class Server {
                         case "/register":
                             if (commType.length >= 2) {
                                 cName = commType[1];
-                                out.println("Welcome " + cName + "!");
+                                String welcomeMessage = "Welcome " + cName + "!";
+                                clientOutputStreams.get(clientKey).writeUTF(welcomeMessage);
+                                System.out.println("Server: Sent registration message to client " + clientKey + ": " + welcomeMessage);
                             } else {
                                 // Registration failure
-                                out.println("Error: Registration failed. Name or alias already exists.");
+                                String errorMessage = "Error: Registration failed. Name or alias already exists.";
+                                clientOutputStreams.get(clientKey).writeUTF(errorMessage);
+                                System.out.println("Server: Sent registration failure message to client " + clientKey + ": " + errorMessage);
                             }
                             break;
                         case "/store":
@@ -209,5 +231,9 @@ public class Server {
                 System.out.println("Error: File not found on the server.");
             }
         }
+    }
+
+    private static String generateUniqueKeyForClient() {
+        return UUID.randomUUID().toString();
     }
 }
