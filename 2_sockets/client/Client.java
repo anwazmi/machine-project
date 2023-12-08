@@ -1,70 +1,57 @@
-import java.util.Scanner;
-import java.util.StringTokenizer;
 import java.io.*;
 import java.net.*;
 import java.nio.file.*;
-import java.util.ArrayList;
+import java.util.*;
 
 public class Client {
 
     static Socket clientEndpoint = new Socket();
-
+    
     public static void joinServer(String serverAddress, int port) {
         try {
+
             clientEndpoint = new Socket(serverAddress, port);
             System.out.println("Successfully connected to File Server at " + clientEndpoint.getRemoteSocketAddress());
+        
         } catch (UnknownHostException | ConnectException e) {
-            System.out.println("Error: Connection failed.");
-        } catch (Exception e) {
+			System.out.println("Error: Connection failed.");
+		} catch (Exception e) {
+            System.out.println("joinServer catch");
             e.printStackTrace();
         }
     }
 
     public static void storeFile(String filename) {
+
         DataOutputStream dosWriter = null;
         InputStream disReader = null;
-
-        try {
-            dosWriter = new DataOutputStream(clientEndpoint.getOutputStream());
-            File file = new File(filename);
-            disReader = new FileInputStream(file);
-
-            dosWriter.writeByte(1);
-            byte[] fileData = Files.readAllBytes(file.toPath());
-            dosWriter.writeInt(fileData.length);
-            System.out.println("Storing file \"" + file.getName() + "\" (" + file.length() + " bytes)");
-
-            byte[] bytes = new byte[1024];
-            int count;
-            while ((count = disReader.read(bytes)) > 0)
-                dosWriter.write(bytes, 0, count);
-
-            System.out.print(filename + " stored successfully.");
-        } catch (IOException e) {
-            System.out.println("Error: File not found on the server.");
             try {
-                if (dosWriter != null) dosWriter.writeByte(0);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        } finally {
-            try {
-                if (disReader != null) disReader.close();
+                    dosWriter = new DataOutputStream(clientEndpoint.getOutputStream());
+                    File file = new File(filename);
+                    disReader = new FileInputStream(file);
+
+                    dosWriter.writeByte(1);
+                    byte[] fileData = Files.readAllBytes(file.toPath());
+                    dosWriter.writeInt(fileData.length);
+                    System.out.println("Storing file \"" + file.getName() + "\" (" + file.length() + " bytes)");
+
+                    byte[] bytes = new byte[1024];
+                    int count;
+                    while ((count = disReader.read(bytes)) > 0) 
+                        dosWriter.write(bytes, 0, count);
+                System.out.print(filename + " stored successfully.");
             } catch (IOException e) {
-                e.printStackTrace();
+                System.out.println("Error: File not found on the server.");
+                try { dosWriter.writeByte(0); } catch (Exception ex) { int x=1; }
             }
-        }
+
     }
 
-    public static void requestDirectory(BufferedReader in) {
-        try {
-            String serverResponse;
-            while ((serverResponse = in.readLine()) != null && !serverResponse.isEmpty()) {
-                System.out.println(serverResponse);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    public static void requestDirectory() {
+
+        System.out.println("Directory file list:");
+        // TODO: implement
+
     }
 
     public static void getFile(String filename) {
@@ -72,19 +59,19 @@ public class Client {
             DataInputStream disReader = new DataInputStream(clientEndpoint.getInputStream());
             OutputStream dosWriter = null;
 
-            if (disReader.readByte() != 0) {
+            if(disReader.readByte() != 0) {
 
-                dosWriter = new FileOutputStream(filename);
+                dosWriter = new FileOutputStream(filename); 
 
                 byte[] bytes = new byte[disReader.readInt()];
                 disReader.readFully(bytes);
                 dosWriter.write(bytes);
 
                 System.out.println("Downloaded file \"" + filename + "\" successfully.");
-            } else
+            } else 
                 System.out.println("\"" + filename + "\" does not exist.");
 
-            if (dosWriter != null)
+            if(dosWriter != null)
                 dosWriter.close();
         } catch (SocketException e) {
             System.out.println("Error: Not connected to a server.");
@@ -92,117 +79,125 @@ public class Client {
             e.printStackTrace();
             System.out.println("Error: File not found.");
         }
+
     }
 
     public static void printCommands() {
         System.out.println("Application commands: \n" +
-                "  /join <server_ip_add> <port> \t Connect to the server application \n" +
-                "  /leave \t\t\t Disconnect from the server application \n" +
-                "  /register <handle> \t\t Register a unique handle or alias \n" +
-                "  /store <filename> \t\t Send file to server \n" +
-                "  /dir \t\t\t\t Request directory file list from a server \n" +
-                "  /get <filename> \t\t Fetch a file from a server \n" +
-                "  /? \t\t\t\t Request command help");
+                           "  /join <server_ip_add> <port> \t Connect to the server application \n" +
+                           "  /leave \t\t\t Disconnect from the server application \n" +
+                           "  /register <handle> \t\t Register a unique handle or alias \n" +
+                           "  /store <filename> \t\t Send file to server \n" +
+                           "  /dir \t\t\t\t Request directory file list from a server \n" +
+                           "  /get <filename> \t\t Fetch a file from a server \n" +
+                           "  /? \t\t\t\t Request command help");
     }
 
-    public static void main(String[] args) {
+  
+    public static void main(String[] args)
+	{
         ArrayList<String> input = new ArrayList<String>();
+        try { 
+            
+        DataOutputStream dosWriter = null;
+        DataInputStream disReader = null;
+        boolean joined = false;
+        boolean registered = false;
+        
+        do {
+            try {
+                Scanner scn = new Scanner(System.in);
+                StringTokenizer st;
+                String command = "default";
 
-        try {
-            DataOutputStream dosWriter = null;
-            boolean joined = false;
-            boolean registered = false;
+                // get user input
+                input.clear();
+                System.out.print("\n> ");
+                command = scn.nextLine();
+                st = new StringTokenizer(command);
 
-            do {
-                try {
-                    Scanner scn = new Scanner(System.in);
-                    StringTokenizer st;
-                    String command = "default";
+                //tokenize
+                while(st.hasMoreTokens())
+                    input.add(st.nextToken());
 
-                    // get user input
-                    input.clear();
-                    System.out.print("\n> ");
-                    command = scn.nextLine();
-                    st = new StringTokenizer(command);
-
-                    // tokenize
-                    while (st.hasMoreTokens())
-                        input.add(st.nextToken());
-
-                    if (dosWriter != null)
-                        try {
-                            dosWriter.writeUTF(command);
-                        } catch (Exception e) {
-                            if (!input.get(0).equals("/join") && !input.get(0).equals("/leave"))
-                                System.out.println("Error: Not connected to a server.  (1)");
-                        }
-
-                    // find user command to execute
+                if(dosWriter != null)
                     try {
-                        if (!joined && !input.get(0).equals("/join") && !input.get(0).equals("/?"))
-                            System.out.println("Error: Not connected to a server.");
-                        else if (!registered && input.get(0).equals("/store") && input.get(0).equals("/dir") && input.get(0).equals("/get"))
-                            System.out.println("Error: Not registered.");
-                        else
-                            switch (input.get(0)) {
-
-                                case "/join":
-                                    joinServer(input.get(1), Integer.parseInt(input.get(2)));
-                                    dosWriter = new DataOutputStream(clientEndpoint.getOutputStream());
-                                    joined = true;
-                                    break;
-                                case "/leave":
-                                    clientEndpoint.close();
-                                    System.out.println("Disconnected from server.");
-                                    joined = false;
-                                    break;
-                                case "/register":
-                                    DataInputStream disReader = new DataInputStream(clientEndpoint.getInputStream());
-                                    String messageServer = disReader.readUTF();
-                                    System.out.println("Server: " + messageServer);
-                                    registered = true;
-                                    break;
-                                case "/store":
-                                    storeFile(input.get(1));
-                                    break;
-                                case "/dir":
-                                    //requestDirectory();
-                                    break;
-                                case "/get":
-                                    getFile(input.get(1));
-                                    break;
-                                case "/?":
-                                    printCommands();
-                                    break;
-                                case "/stop":
-                                    break;
-                                default:
-                                    System.out.println("Error: Unknown command. Type /? for help.");
-
-                            }
-                    } catch (IndexOutOfBoundsException | NumberFormatException e) {
-                        System.out.println("Error: Invalid command syntax. Type /? for help.");
+                        dosWriter.writeUTF(command);
+                    } catch (Exception e) {  
+                        if (!input.get(0).equals("/join") && !input.get(0).equals("/leave"))
+                            //System.out.println("Error: Not connected to a server.  (1)");
+                            System.out.print("");
                     }
 
-                } catch (Exception e) {
-                    e.printStackTrace();
+                // find user command to execute
+                try {
+                    if(!joined && (input.get(0).equals("/leave") || input.get(0).equals("/register") || input.get(0).equals("/store") || input.get(0).equals("/dir") || input.get(0).equals("/get")))
+                        System.out.println("Error: Not connected to a server.");
+                    else if(!registered && (input.get(0).equals("/store") || input.get(0).equals("/dir") || input.get(0).equals("/get")))
+                        System.out.println("Error: Not registered.");
+                    else
+                    switch(input.get(0)) {
+                        
+                        case "/join":
+                            joinServer(input.get(1), Integer.parseInt(input.get(2)));
+                            dosWriter = new DataOutputStream(clientEndpoint.getOutputStream());
+                            joined = true;
+                            break;
+                        case "/leave": 
+                            clientEndpoint.close();
+                            System.out.println("Disconnected from server.");
+                            joined = false;
+                            break;
+                        case "/register":
+                            disReader = new DataInputStream(clientEndpoint.getInputStream());
+                            String name = input.get(1); // For syntax checking
+                            String messageServer = disReader.readUTF();
+                            System.out.println("Server: " + messageServer);
+                            registered = true;
+                            break;
+                        case "/store":
+                            storeFile(input.get(1));
+                            break;
+                        case "/dir":
+                            disReader = new DataInputStream(clientEndpoint.getInputStream());
+                            System.out.println("List of files:");
+                            while (true) {
+                                String fileName = disReader.readUTF();
+                    
+                                if (fileName.equals("/endlist")) break;
+                    
+                                System.out.println("- " + fileName);
+                            }
+                            break;
+                        case "/get":
+                            getFile(input.get(1));
+                            break;
+                        case "/?":
+                            printCommands();
+                            break;
+                        case "/stop": break;
+                        default:
+                            System.out.println("Error: Unknown command. Type /? for help.");
+
+                    }
+                } catch (IndexOutOfBoundsException | NumberFormatException e) {
+                    System.out.println("Error: Invalid command syntax. Type /? for help.");
                 }
 
-            } while (!input.get(0).equals("/stop"));
+            } catch (Exception e) { int x=1; }
 
-            joined = false;
-            registered = false;
+        } while(!input.get(0).equals("/stop"));
 
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        joined = false;
+        registered = false;
+
+        } catch (Exception e) { int x=1; }
 
         try {
             // terminate connection
             clientEndpoint.close();
             System.out.println("Connection is terminated.");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+        } catch (Exception e) { int x=1; }
+
+	}
 }
