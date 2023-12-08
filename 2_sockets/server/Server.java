@@ -1,12 +1,11 @@
 import java.io.*;
 import java.net.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
-import java.nio.file.Files;
-
+import java.nio.file.*;
 
 public class Server {
     private static Map<String, DataOutputStream> clientOutputStreams = new HashMap<>();
-
     public static void main(String[] args) {
         try {
             ServerSocket serverSocket = new ServerSocket(12345);
@@ -35,7 +34,6 @@ public class Server {
         private DataInputStream disReader;
         private DataOutputStream dosWriter;
         private String clientKey;
-        private ArrayList<String> aliases = new ArrayList<>();
 
         public ClientHandler(Socket clientSocket, String clientKey) {
             this.clientSocket = clientSocket;
@@ -56,9 +54,10 @@ public class Server {
                 DataInputStream disReader = new DataInputStream(clientSocket.getInputStream());
                 DataOutputStream dosWriter = new DataOutputStream(clientSocket.getOutputStream());
                 String command;
-
+                ArrayList<String> aliases = new ArrayList<String>();
+                
                 do {
-                    String inputLine = disReader.readUTF();
+                    String inputLine = disReader.readUTF();                    
                     String[] commType = inputLine.split(" ");
                     command = commType[0].toLowerCase();
 
@@ -89,12 +88,14 @@ public class Server {
                             break;
                         case "/register":
                             boolean flag = true;
-                            for (String alias : aliases) {
-                                if (alias.equals(commType[1])) {
+                            for(int i=0; i < aliases.size(); i++) 
+                                try {
+                                    if(aliases.get(i).equals(commType[1]))
+                                        flag = false;    
+                                } catch (IndexOutOfBoundsException x) {
+                                    System.out.println("No name given.");
                                     flag = false;
-                                    break;
                                 }
-                            }
 
                             if (commType.length >= 2 && flag) {
                                 cName = commType[1];
@@ -102,7 +103,7 @@ public class Server {
                                 String welcomeMessage = "Welcome " + cName + "!";
                                 clientOutputStreams.get(clientKey).writeUTF(welcomeMessage);
                                 System.out.println("Server: Sent registration message to client " + clientKey + ": " + welcomeMessage);
-                            } else {
+                            } else if (flag) {
                                 // Registration failure
                                 String errorMessage = "Error: Registration failed. Name or alias already exists.";
                                 clientOutputStreams.get(clientKey).writeUTF(errorMessage);
@@ -113,23 +114,23 @@ public class Server {
                             if (commType.length >= 2) {
                                 String filename = commType[1];
                                 storeFile(filename, disReader);
+                                //out.println(cName + ": File stored on the server: " + filename);
                             } else {
                                 out.println("Error: /store command requires a filename.");
                             }
                             break;
                         case "/dir":
-                            String directoryPath = "C:\\Users\\user\\Downloads\\school\\CSNETWK\\mp\\Server";
-                            File directory = new File(directoryPath);
-                            File[] contentsOfDirectory = directory.listFiles();
+                            File currentDirectory = new File(System.getProperty("user.dir"));
+                            File[] files = currentDirectory.listFiles((dir, name) -> name.toLowerCase().endsWith(".txt"));
 
-                            if (contentsOfDirectory != null) {
-                                for (File object : contentsOfDirectory)
-                                    if (object.isFile())
-                                        dosWriter.writeUTF("File fName: %s%n" + object.getName());
-                            } else {
-                                out.println("Error: Directory not found or is not a directory.");
+                            if (files != null) {
+                                for (File file : files) {
+                                    clientOutputStreams.get(clientKey).writeUTF(file.getName());
+                                }
                             }
-                            dosWriter.close();
+
+                            // Signal end of file list
+                            dosWriter.writeUTF("/endlist");
                             break;
                         case "/get":
                             if (commType.length >= 2) {
@@ -143,14 +144,15 @@ public class Server {
                             out.println("Error: Command not found.");
                             break;
                     }
+                
+                    command = "clear";
 
                 } while (!command.equals("/leave"));
-
-                // Close all
+                //Close all
                 disReader.close();
                 out.close();
                 clientSocket.close();
-            } catch (IOException e) {
+            } catch (Exception e) {
                 System.out.println("main error");
                 e.printStackTrace();
             }
@@ -161,18 +163,18 @@ public class Server {
             try {
                 OutputStream dosWriter = null;
 
-                if (disReader.readByte() != 0) {
-                    dosWriter = new FileOutputStream(filename);
+                if(disReader.readByte() != 0) {
+                    dosWriter = new FileOutputStream(filename); 
 
                     byte[] bytes = new byte[disReader.readInt()];
                     disReader.readFully(bytes);
                     dosWriter.write(bytes);
 
                     System.out.println("Stored file \"" + filename + "\" successfully.");
-                } else
+                } else 
                     System.out.println("\"" + filename + "\" does not exist.");
 
-                if (dosWriter != null)
+                if(dosWriter != null)
                     dosWriter.close();
             } catch (Exception e) {
                 e.printStackTrace();
@@ -181,7 +183,7 @@ public class Server {
 
         // Send a file to the client
         private void sendFile(String filename, DataOutputStream dosWriter) {
-            InputStream disReader = null;
+           InputStream disReader = null;
             try {
                 File file = new File(filename);
                 disReader = new FileInputStream(file);
@@ -193,16 +195,14 @@ public class Server {
 
                 byte[] bytes = new byte[1024];
                 int count;
-                while ((count = disReader.read(bytes)) > 0)
+                while ((count = disReader.read(bytes)) > 0) 
                     dosWriter.write(bytes, 0, count);
                 System.out.print(filename + " received successfully.");
             } catch (IOException e) {
                 System.out.println("Error: File not found on the server.");
                 try {
                     dosWriter.writeByte(0);
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
+                } catch (Exception ex) { int x=1; }
             }
         }
     }
